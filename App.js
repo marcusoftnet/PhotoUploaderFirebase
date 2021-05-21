@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Button,
+  FlatList,
   Image,
   StyleSheet,
   View,
@@ -13,18 +14,24 @@ import { storage } from './firebase';
 export default function App() {
   const [imageUri, setImageUri] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [urlsUploadedImages, setURLsUploadedImages] = useState(null);
 
   useEffect(() => {
     (async () => {
-      if (Platform.OS !== 'web') {
-        const { status } =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          alert('Sorry, we need camera roll permissions to make this work!');
-        }
-      }
+      await getPermission();
+      await setURLsToFilesInBucket();
     })();
   }, []);
+
+  const getPermission = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Sorry, we need camera roll permissions to make this work!');
+      }
+    }
+  };
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -58,7 +65,7 @@ export default function App() {
     });
   };
 
-  const uploadImage = async () => {
+  const uploadImageToBucket = async () => {
     let blob;
     try {
       setUploading(true);
@@ -76,6 +83,15 @@ export default function App() {
     }
   };
 
+  const setURLsToFilesInBucket = async () => {
+    const imageRefs = await storage.ref().listAll();
+    const urls = await Promise.all(
+      imageRefs.items.map((ref) => ref.getDownloadURL())
+    );
+    console.log(urls);
+    setURLsUploadedImages(urls);
+  };
+
   return (
     <View style={styles.container}>
       <Image source={{ uri: imageUri }} style={{ width: 300, height: 300 }} />
@@ -84,8 +100,16 @@ export default function App() {
       {uploading ? (
         <ActivityIndicator />
       ) : (
-        <Button title='Upload' onPress={uploadImage} />
+        <Button title='Upload' onPress={uploadImageToBucket} />
       )}
+
+      <FlatList
+        data={urlsUploadedImages}
+        keyExtractor={(item) => item}
+        renderItem={({ item }) => (
+          <Image source={{ uri: item }} style={{ width: 100, height: 100 }} />
+        )}
+      />
     </View>
   );
 }
