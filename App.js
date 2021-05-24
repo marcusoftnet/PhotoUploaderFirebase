@@ -3,24 +3,20 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Button,
-  FlatList,
   Image,
+  SafeAreaView,
   StyleSheet,
-  View,
 } from 'react-native';
 import uuid from 'uuid';
+import ImagesList from './components/ImagesList';
 import { storage } from './firebase';
 
 export default function App() {
   const [imageUri, setImageUri] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [urlsUploadedImages, setURLsUploadedImages] = useState(null);
 
   useEffect(() => {
-    (async () => {
-      await getPermission();
-      await setURLsToFilesInBucket();
-    })();
+    getPermission();
   }, []);
 
   const getPermission = async () => {
@@ -48,7 +44,7 @@ export default function App() {
     }
   };
 
-  const getPictureBlog = (uri) => {
+  const getPictureBlob = (uri) => {
     // https://github.com/expo/expo/issues/2402#issuecomment-443726662
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -69,7 +65,7 @@ export default function App() {
     let blob;
     try {
       setUploading(true);
-      blob = await getPictureBlog(imageUri);
+      blob = await getPictureBlob(imageUri);
 
       const ref = await storage.ref().child(uuid.v4());
       const snapshot = await ref.put(blob);
@@ -83,17 +79,8 @@ export default function App() {
     }
   };
 
-  const setURLsToFilesInBucket = async () => {
-    const imageRefs = await storage.ref().listAll();
-    const urls = await Promise.all(
-      imageRefs.items.map((ref) => ref.getDownloadURL())
-    );
-    console.log(urls);
-    setURLsUploadedImages(urls);
-  };
-
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Image source={{ uri: imageUri }} style={{ width: 300, height: 300 }} />
       <Button title='Choose picture' onPress={pickImage} />
 
@@ -103,14 +90,8 @@ export default function App() {
         <Button title='Upload' onPress={uploadImageToBucket} />
       )}
 
-      <FlatList
-        data={urlsUploadedImages}
-        keyExtractor={(item) => item}
-        renderItem={({ item }) => (
-          <Image source={{ uri: item }} style={{ width: 100, height: 100 }} />
-        )}
-      />
-    </View>
+      <ImagesList />
+    </SafeAreaView>
   );
 }
 
